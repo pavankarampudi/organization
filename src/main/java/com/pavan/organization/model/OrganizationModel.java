@@ -7,8 +7,12 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 import javax.persistence.Table;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "Organization")
@@ -32,9 +36,10 @@ public class OrganizationModel extends AuditModel {
 	@Column(name = "UPDATED_BY")
 	private String updateBy;
 	
-	@ManyToMany(mappedBy = "org")
-		
-	Set<UserModel> users;
+	@ManyToMany
+	@JoinTable(name = "ORG_USER_MAPPING", joinColumns = @JoinColumn(name = "ORG_ID"), inverseJoinColumns = @JoinColumn(name = "USER_ID"))
+	@JsonIgnore
+	private Set<UserModel> users;
 
 	public Set<UserModel> getUsers() {
 		return users;
