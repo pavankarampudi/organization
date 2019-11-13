@@ -1,7 +1,6 @@
 package com.pavan.organization.controller;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -14,7 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pavan.organization.model.OrganizationModel;
@@ -26,7 +25,6 @@ import com.pavan.organization.repository.UserRepository;
 import io.swagger.annotations.ApiOperation;
 
 @RestController
-@RequestMapping("/org")
 public class Organization {
 
 	@Autowired
@@ -38,8 +36,6 @@ public class Organization {
 	@Autowired
 	AddressRepository addressRepository;
 
-	
-
 	@ApiOperation(value = "creates an organization")
 	@PostMapping("/orgs")
 	public OrganizationModel createOrg(@Valid @RequestBody OrganizationModel org) {
@@ -48,68 +44,64 @@ public class Organization {
 
 	@ApiOperation(value = "creates an user")
 	@PostMapping("/users")
-	public UserModel createUser(@Valid @RequestBody UserModel user) throws NotFoundException {
-
-		UserModel userobj = userRepository.save(user);
-		return userobj;
+	public UserModel createUser(@Valid @RequestBody UserModel user) {
+		user.getAddress().stream().forEach(address -> address.setUser(user));
+		userRepository.save(user);
+		return user;
 	}
 
 	@ApiOperation(value = "add org to an user")
-	@GetMapping("/orgs/{orgId}/users/{userId}")
-	public UserModel updateOrg(@PathVariable int userId, @PathVariable int orgId) throws NotFoundException {
-		UserModel userModel = null;
-		Optional<UserModel> userobj = userRepository.findById(userId);
-		if (userobj.isPresent()) {
-			UserModel userModelObj = userModel = userobj.get();
-			organizationRepository.findById(orgId).map(org -> {
-				userModelObj.setUserID(userId);
-				Set<OrganizationModel> orgset = new HashSet<>();
-				orgset.add(org);
-				userModelObj.setOrg(orgset);
-				return userRepository.save(userModelObj);
-			}).orElseThrow(() -> new NotFoundException());
-		} else {
-			throw new NotFoundException();
+	@PostMapping("/orgs/{orgId}/users/{userId}")
+	public @ResponseBody String mapUserToOrg(@PathVariable int userId, @PathVariable int orgId){
+		Optional<UserModel> usermodel = userRepository.findById(userId);
+		Optional<OrganizationModel> orgmodel = organizationRepository.findById(orgId);
+		if (orgmodel.isPresent() && usermodel.isPresent()) {
+			OrganizationModel orgnizationobj = orgmodel.get();
+			orgnizationobj.getUsers().add(usermodel.get());
+			organizationRepository.save(orgnizationobj);
 		}
-		return userModel;
+		return "success";
 
 	}
 
 	@ApiOperation(value = "detele org from an user")
 	@DeleteMapping("/orgs/{orgId}/users/{userId}/deleteorg")
-	public void deleteOrg(@PathVariable int orgId, @PathVariable int userId) throws NotFoundException {
-		
+	public void deleteUserFromOrg(@PathVariable int orgId, @PathVariable int userId) {
+
 		Optional<OrganizationModel> org = organizationRepository.findById(orgId);
-		Optional<UserModel> user = userRepository.findById(userId);
 		if (org.isPresent()) {
-		OrganizationModel orgmodel = org.get();
-		orgmodel.getUsers().remove(user.get());
-		
+			OrganizationModel orgModel = org.get();
+			Optional<UserModel> user = orgModel.getUsers().stream().filter(users -> users.getUserID() == userId)
+					.findFirst();
+			if (user.isPresent()) {
+				orgModel.getUsers().remove(user.get());
+				organizationRepository.save(orgModel);
+			}
 		}
-		//orgUserMappingRepo.deleteByOrgIdAndUserId(orgId, userId);
 	}
 
-	@ApiOperation(value = "get all user belong to an organization")
+	@ApiOperation(value = "Read all Users who belong to a specific Organization")
 	@GetMapping("/orgs/{orgId}/users")
-	public List<UserModel> getUsers(@PathVariable int orgId) throws NotFoundException {
+	public Set<UserModel> getUsersFromOrg(@PathVariable int orgId) throws NotFoundException {
 
 		Optional<OrganizationModel> org = organizationRepository.findById(orgId);
 		if (org.isPresent()) {
-			return userRepository.findByOrg(org.get());
+			return org.get().getUsers();
 		} else {
 			throw new NotFoundException();
 		}
 
 	}
 
-	@ApiOperation(value = "creates an user")
-	@PostMapping("/orgs/{orgId}/users")
-	public UserModel createUser(@Valid @RequestBody UserModel user, @PathVariable int orgId) throws NotFoundException {
+	@ApiOperation(value = "Read all Organizations to which a User belongs")
+	@GetMapping("/users/{userId}/orgs")
+	public Set<OrganizationModel> getOrgFroUser(@PathVariable int userId){
 
-		UserModel userobj = organizationRepository.findById(orgId).map(org -> {
-			return userRepository.save(user);
-		}).orElseThrow(() -> new NotFoundException());
-		return userobj;
+		Optional<UserModel> userobj = userRepository.findById(userId);
+		if (userobj.isPresent()) {
+			return userobj.get().getOrg();
+		}
+		return new HashSet<>();
 	}
 
 }

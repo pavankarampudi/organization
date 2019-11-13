@@ -9,8 +9,6 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
 import javax.persistence.ManyToMany;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
@@ -26,8 +24,7 @@ public class UserModel extends AuditModel {
 	@Column(name = "USER_ID")
 	private int userID;
 
-	@ManyToMany
-	@JoinTable(name = "ORG_USER_MAPPING", joinColumns = @JoinColumn(name = "ORG_ID"), inverseJoinColumns = @JoinColumn(name = "USER_ID"))
+	@ManyToMany(mappedBy = "users")
 	@JsonIgnore
 	private Set<OrganizationModel> org;
 	@Column(name = "FIRSTNAME")
@@ -40,8 +37,7 @@ public class UserModel extends AuditModel {
 	private String createdBy;
 	private String updatedBy;
 
-	@OneToMany(cascade = CascadeType.ALL)
-	@JoinColumn(name = "USER_ID")
+	@OneToMany(cascade = CascadeType.ALL, mappedBy = "user")
 	private List<AddressModel> address;
 
 	public int getUserID() {
